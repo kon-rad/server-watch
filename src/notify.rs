@@ -48,15 +48,26 @@ fn agent() -> ureq::Agent {
         .build()
 }
 
+fn post_json(url: &str, body: serde_json::Value) -> Result<(), String> {
+    agent()
+        .post(url)
+        .send_json(body)
+        .map(|_| ())
+        .map_err(|e| e.to_string())
+}
+
 pub fn send_telegram(text: &str) -> Result<(), String> {
     let token = std::env::var(ENV_TOKEN).map_err(|_| format!("{ENV_TOKEN} is not set"))?;
     let chat = std::env::var(ENV_CHAT).map_err(|_| format!("{ENV_CHAT} is not set"))?;
     let url = format!("https://api.telegram.org/bot{token}/sendMessage");
     for part in chunks(text, 3900) {
-        agent()
-            .post(&url)
-            .send_json(json!({"chat_id": chat, "text": part, "disable_web_page_preview": true}))
-            .map_err(|e| scrub(format!("telegram: {e}"), &token))?;
+        let body = json!({"chat_id": chat, "text": part, "disable_web_page_preview": true});
+        // One retry: a cold connection to Telegram sometimes times out once.
+        let sent = post_json(&url, body.clone()).or_else(|_| {
+            std::thread::sleep(Duration::from_secs(2));
+            post_json(&url, body)
+        });
+        sent.map_err(|e| scrub(format!("telegram: {e}"), &token))?;
     }
     Ok(())
 }

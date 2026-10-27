@@ -128,7 +128,7 @@ pub const SAMPLE_CONFIG: &str = "# server-watch config. Every setting is optiona
 \n\
 # [notify]\n\
 # immediate = \"critical\"      # \"warn\" sends warnings right away too\n\
-# reminder_hours = 24\n# escalate_after_hours = 72\n# resolved = true\n";
+# reminder_hours = 24\n# escalate_after_hours = 72\n# resolved = true\n# confirm_runs = 2        # RAM, load and paging spikes must repeat this many runs\n";
 
 pub const ENV_TEMPLATE: &str = "# Secrets for server-watch. Keep this file mode 600.\n\
 SERVER_WATCH_TELEGRAM_TOKEN=\nSERVER_WATCH_TELEGRAM_CHAT_ID=\n# SERVER_WATCH_WEBHOOK_URL=\n";

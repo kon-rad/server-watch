@@ -50,6 +50,8 @@ pub struct NotifyCfg {
     pub escalate_after_hours: u64,
     /// Tell me when an alert I was sent clears.
     pub resolved: bool,
+    /// RAM, load and paging spikes must show in this many runs in a row before an alert.
+    pub confirm_runs: u32,
 }
 
 impl Default for NotifyCfg {
@@ -59,6 +61,7 @@ impl Default for NotifyCfg {
             reminder_hours: 24,
             escalate_after_hours: 72,
             resolved: true,
+            confirm_runs: 2,
         }
     }
 }

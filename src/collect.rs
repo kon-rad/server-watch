@@ -571,9 +571,7 @@ fn reboot(s: &mut Snapshot) {
     let need = std::path::Path::new("/var/run/reboot-required").exists();
     s.metric("reboot_required", need);
     if need {
-        let pkgs = read("/var/run/reboot-required.pkgs")
-            .map(|p| p.lines().collect::<Vec<_>>().join(", "))
-            .unwrap_or_default();
+        let pkgs = reboot_pkgs(&read("/var/run/reboot-required.pkgs").unwrap_or_default());
         s.add(Finding::new(
             "reboot_required",
             Severity::Warn,
@@ -585,6 +583,29 @@ fn reboot(s: &mut Snapshot) {
             },
         ));
     }
+}
+
+/// Unique package names, kernels collapsed, capped so the alert stays short.
+pub fn reboot_pkgs(raw: &str) -> String {
+    let mut seen: Vec<&str> = Vec::new();
+    for p in raw.lines().map(str::trim).filter(|p| !p.is_empty()) {
+        if !seen.contains(&p) && p != "linux-base" {
+            seen.push(p);
+        }
+    }
+    let kernels = seen
+        .iter()
+        .filter(|p| p.starts_with("linux-image-"))
+        .count();
+    let mut out: Vec<String> = seen
+        .iter()
+        .filter(|p| !p.starts_with("linux-image-"))
+        .map(|p| p.to_string())
+        .collect();
+    if kernels > 0 {
+        out.push(format!("{kernels} kernel image(s)"));
+    }
+    out.join(", ")
 }
 
 /// Count `Inst` lines from `apt-get -s dist-upgrade`: (total, security, first names).
@@ -1071,6 +1092,12 @@ mod tests {
         let v = parse_lsof(s);
         assert_eq!(v[0].0, "tcp/7000/public");
         assert_eq!(v[1].0, "tcp/3000/local");
+    }
+
+    #[test]
+    fn reboot_pkgs_dedupes_and_collapses_kernels() {
+        let raw = "libc6\napparmor\nlinux-image-6.8.0-124-generic\nlinux-base\nlibc6\nlinux-image-6.8.0-137-generic\nlinux-base\n";
+        assert_eq!(reboot_pkgs(raw), "libc6, apparmor, 2 kernel image(s)");
     }
 
     #[test]

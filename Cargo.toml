@@ -1,6 +1,6 @@
 [package]
 name = "server-watch"
-version = "0.1.0"
+version = "0.1.1"
 edition = "2021"
 description = "Small CLI that watches a server for pending patches, low disk/RAM, and signs of intrusion, and alerts you on Telegram only when something is new or worse."
 license = "MIT"

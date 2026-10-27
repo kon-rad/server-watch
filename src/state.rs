@@ -15,6 +15,9 @@ pub struct Tracked {
     pub last_seen: u64,
     pub last_notified: u64,
     pub notified_sev: Option<Severity>,
+    /// Consecutive runs this finding has been present.
+    #[serde(default)]
+    pub runs: u32,
 }
 
 #[derive(Serialize, Deserialize, Default, Debug)]
@@ -55,6 +58,11 @@ pub struct Decision {
     pub events: Vec<Value>,
 }
 
+/// Readings that spike and recover on their own; they must persist across runs before an alert.
+fn is_transient(id: &str) -> bool {
+    matches!(id, "memory" | "load" | "swap_paging")
+}
+
 /// Update tracked findings from the current run and decide what to tell the owner.
 /// Notified timestamps are NOT set here; call `mark_notified` after a successful send.
 pub fn reconcile(st: &mut State, current: Vec<Finding>, now: u64, cfg: &NotifyCfg) -> Decision {
@@ -72,6 +80,7 @@ pub fn reconcile(st: &mut State, current: Vec<Finding>, now: u64, cfg: &NotifyCf
                 last_seen: now,
                 last_notified: 0,
                 notified_sev: None,
+                runs: 0,
             }
         });
         let age = now.saturating_sub(t.first_seen);
@@ -85,10 +94,12 @@ pub fn reconcile(st: &mut State, current: Vec<Finding>, now: u64, cfg: &NotifyCf
         }
         t.finding = f.clone();
         t.last_seen = now;
+        t.runs += 1;
+        let confirmed = !is_transient(&f.id) || t.runs >= cfg.confirm_runs;
         let worse = t.notified_sev.is_none_or(|n| f.severity > n);
         let remind = t.notified_sev.is_some()
             && now.saturating_sub(t.last_notified) >= cfg.reminder_hours * 3600;
-        if f.severity >= min && (worse || remind) {
+        if confirmed && f.severity >= min && (worse || remind) {
             d.notify.push(f);
         }
     }
@@ -214,6 +225,22 @@ mod tests {
         assert_eq!(d.notify.len(), 1);
         assert_eq!(d.notify[0].severity, Severity::Critical);
         assert!(d.notify[0].title.contains("open 3d"));
+    }
+
+    #[test]
+    fn spikes_need_two_consecutive_runs() {
+        let mut st = State::default();
+        let d = reconcile(&mut st, vec![f("memory", Severity::Critical)], 0, &cfg());
+        assert!(d.notify.is_empty(), "one bad sample is not an alert");
+        let d = reconcile(&mut st, vec![], 600, &cfg());
+        assert!(
+            d.resolved.is_empty(),
+            "never alerted, so no resolved message"
+        );
+        let d = reconcile(&mut st, vec![f("memory", Severity::Critical)], 1200, &cfg());
+        assert!(d.notify.is_empty());
+        let d = reconcile(&mut st, vec![f("memory", Severity::Critical)], 1800, &cfg());
+        assert_eq!(d.notify.len(), 1, "second consecutive run confirms it");
     }
 
     #[test]
