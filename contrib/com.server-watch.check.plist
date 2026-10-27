@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!-- macOS: runs `server-watch check` every 10 minutes.
+     Install: cp this file to ~/Library/LaunchAgents/ then
+     launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.server-watch.check.plist
+     Put SERVER_WATCH_TELEGRAM_TOKEN and SERVER_WATCH_TELEGRAM_CHAT_ID in ~/.config/server-watch/env -->
+<plist version="1.0">
+<dict>
+  <key>Label</key><string>com.server-watch.check</string>
+  <key>ProgramArguments</key>
+  <array><string>/usr/local/bin/server-watch</string><string>check</string></array>
+  <key>StartInterval</key><integer>600</integer>
+  <key>RunAtLoad</key><true/>
+  <key>StandardErrorPath</key><string>/tmp/server-watch.err</string>
+</dict>
+</plist>

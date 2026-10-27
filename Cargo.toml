@@ -1,0 +1,25 @@
+[package]
+name = "server-watch"
+version = "0.1.0"
+edition = "2021"
+description = "Small CLI that watches a server for pending patches, low disk/RAM, and signs of intrusion, and alerts you on Telegram only when something is new or worse."
+license = "MIT"
+repository = "https://github.com/kon-rad/server-watch"
+readme = "README.md"
+keywords = ["monitoring", "security", "telegram", "sysadmin", "intrusion-detection"]
+categories = ["command-line-utilities", "development-tools"]
+
+[dependencies]
+clap = { version = "4", features = ["derive"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+toml = "0.8"
+ureq = { version = "2", features = ["json"] }
+sha2 = "0.10"
+
+[profile.release]
+opt-level = "z"
+lto = true
+codegen-units = 1
+strip = true
+panic = "abort"
