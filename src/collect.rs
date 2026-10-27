@@ -258,7 +258,7 @@ pub fn top_swap() -> Vec<(u64, String)> {
             v.push((kb, format!("{name}({n})")));
         }
     }
-    v.sort_by(|a, b| b.0.cmp(&a.0));
+    v.sort_by_key(|a| std::cmp::Reverse(a.0));
     v.truncate(4);
     v
 }
@@ -274,11 +274,10 @@ fn memory(s: &mut Snapshot, ctx: &Ctx) {
     };
     let t = &ctx.cfg.thresholds;
     let avail_pct = m.avail_kb * 100 / m.total_kb;
-    let swap_used_pct = if m.swap_total_kb > 0 {
-        (m.swap_total_kb - m.swap_free_kb.min(m.swap_total_kb)) * 100 / m.swap_total_kb
-    } else {
-        0
-    };
+    let swap_used_pct = (m.swap_total_kb - m.swap_free_kb.min(m.swap_total_kb))
+        .saturating_mul(100)
+        .checked_div(m.swap_total_kb)
+        .unwrap_or(0);
     s.metric("mem_total_mb", m.total_kb / 1024);
     s.metric("mem_avail_pct", avail_pct);
     s.metric("mem_used_pct", 100 - avail_pct.min(100));
